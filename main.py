@@ -18,17 +18,17 @@ st.title("🎬 일일 박스오피스")
 
 
 # ---------------------------------------
-# 2. 한국 시간(KST) 기준으로 날짜 계산
+# 2. 한국 시간(KST) 기준 날짜 계산
 # ---------------------------------------
 
 KST = timezone(timedelta(hours=9))
 
 now_kst = datetime.now(KST)
 
-# 오늘 날짜
 today = now_kst.date()
 
-# 조회할 수 있는 가장 늦은 날짜 = 어제
+# 오늘은 아직 집계가 끝나지 않았으므로
+# 조회 가능한 가장 최근 날짜는 어제
 yesterday = today - timedelta(days=1)
 
 
@@ -43,19 +43,18 @@ selected_date = st.date_input(
     max_value=yesterday
 )
 
-# KOBIS API에 사용할 날짜
 target_date = selected_date.strftime("%Y%m%d")
 
-# 화면에 보여줄 날짜
 display_date = selected_date.strftime("%Y년 %m월 %d일")
 
 
 # ---------------------------------------
-# 4. KOBIS API에서 박스오피스 데이터 가져오기
+# 4. KOBIS API에서 데이터 가져오기
 # ---------------------------------------
 
 @st.cache_data(ttl=3600)
 def get_boxoffice(target_dt):
+
     try:
         # Streamlit Secrets에서 API 키 가져오기
         api_key = st.secrets["KOBIS_KEY"]
@@ -77,12 +76,11 @@ def get_boxoffice(target_dt):
             timeout=10
         )
 
-        # HTTP 오류 확인
         response.raise_for_status()
 
         data = response.json()
 
-        # API에서 오류 정보를 보내는 경우
+        # API 오류
         if "faultInfo" in data:
             return None, "API_ERROR"
 
@@ -115,7 +113,7 @@ def get_boxoffice(target_dt):
 
 
 # ---------------------------------------
-# 5. 선택한 날짜의 데이터 가져오기
+# 5. 선택한 날짜 데이터 가져오기
 # ---------------------------------------
 
 movie_list, error_type = get_boxoffice(target_date)
@@ -126,7 +124,7 @@ movie_list, error_type = get_boxoffice(target_date)
 # ---------------------------------------
 
 if error_type == "EMPTY":
-    st.warning("📭 그날은 아직 집계 전입니다.")
+    st.warning("📭 그날은 아직 집계 전입니다")
     st.stop()
 
 elif error_type == "NO_KEY":
@@ -144,7 +142,7 @@ elif error_type == "API_ERROR":
     st.stop()
 
 elif error_type == "NO_RESULT":
-    st.warning("📭 그날은 아직 집계 전입니다.")
+    st.warning("📭 그날은 아직 집계 전입니다")
     st.stop()
 
 elif error_type == "CONNECTION_ERROR":
@@ -201,7 +199,10 @@ for column in number_columns:
 
 
 # 순위순으로 정렬
-df = df.sort_values("rank")
+df = df.sort_values(
+    by="rank",
+    ascending=True
+)
 
 
 # ---------------------------------------
@@ -244,7 +245,6 @@ with col3:
 
 st.subheader("🎞️ 전체 박스오피스")
 
-
 display_df = df[
     [
         "rank",
@@ -259,13 +259,13 @@ display_df = df[
 
 
 # ---------------------------------------
-# 12. 영화명 옆에 트로피 표시
+# 12. 누적 관객 100만 명 이상 트로피 표시
 # ---------------------------------------
 
 def add_trophy(row):
+
     movie_name = row["movieNm"]
 
-    # 누적 관객이 100만 명을 넘으면 트로피 표시
     if row["audiAcc"] > 1_000_000:
         movie_name += " 🏆"
 
@@ -283,6 +283,7 @@ display_df["movieNm"] = display_df.apply(
 # ---------------------------------------
 
 def rank_change(row):
+
     change = int(row["rankInten"])
 
     # 순위가 오른 경우
@@ -337,7 +338,7 @@ display_df["스크린 수"] = display_df[
 
 
 # ---------------------------------------
-# 16. 표 보여주기
+# 16. 전체 표 보여주기
 # ---------------------------------------
 
 st.dataframe(
@@ -354,30 +355,35 @@ st.dataframe(
 st.subheader("📊 관객 수 TOP 5")
 
 
-# 관객 수를 기준으로 내림차순 정렬해서
-# 관객 수가 많은 영화 5편을 선택합니다.
+# 먼저 일일 관객 수가 많은 영화부터
+# 숫자 기준으로 정렬합니다.
 top5 = df.sort_values(
     by="audiCnt",
     ascending=False
 ).head(5).copy()
 
 
-# TOP 5를 관객 수가 적은 순서로 다시 정렬합니다.
-# 여기서 반드시 숫자형 audiCnt를 기준으로 정렬합니다.
+# TOP 5를 다시
+# 관객 수가 적은 영화 → 많은 영화 순서로 정렬합니다.
+#
+# 중요:
+# movieNm(영화명)이 아니라
+# audiCnt(관객 수)를 기준으로 정렬합니다.
 top5 = top5.sort_values(
     by="audiCnt",
     ascending=True
 ).reset_index(drop=True)
 
 
-# 그래프에 사용할 데이터만 따로 만듭니다.
+# 그래프용 데이터
+# 관객 수를 반드시 정수형으로 사용합니다.
 chart_df = pd.DataFrame({
     "영화명": top5["movieNm"].astype(str),
     "관객 수": top5["audiCnt"].astype(int)
 })
 
 
-# 관객 수가 적은 영화 → 많은 영화 순서로 그래프 표시
+# 관객 수 숫자 오름차순으로 그래프 표시
 st.bar_chart(
     chart_df,
     x="영화명",
