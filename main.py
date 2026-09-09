@@ -28,7 +28,7 @@ now_kst = datetime.now(KST)
 today = now_kst.date()
 
 # 오늘은 아직 집계가 끝나지 않았으므로
-# 조회 가능한 가장 최근 날짜는 어제
+# 조회 가능한 가장 늦은 날짜는 어제
 yesterday = today - timedelta(days=1)
 
 
@@ -286,15 +286,12 @@ def rank_change(row):
 
     change = int(row["rankInten"])
 
-    # 순위가 오른 경우
     if change > 0:
         return f"🔺 +{change}"
 
-    # 순위가 내려간 경우
     elif change < 0:
         return f"🔻 {change}"
 
-    # 순위가 그대로인 경우
     else:
         return "➖ 0"
 
@@ -355,35 +352,46 @@ st.dataframe(
 st.subheader("📊 관객 수 TOP 5")
 
 
-# 먼저 일일 관객 수가 많은 영화부터
-# 숫자 기준으로 정렬합니다.
+# 먼저 관객 수가 가장 많은 영화 5편을 선택
 top5 = df.sort_values(
     by="audiCnt",
     ascending=False
 ).head(5).copy()
 
 
-# TOP 5를 다시
-# 관객 수가 적은 영화 → 많은 영화 순서로 정렬합니다.
+# ---------------------------------------
+# ⭐ 중요
+# ---------------------------------------
+# TOP 5를 관객 수 기준 "오름차순"으로 정렬
 #
-# 중요:
-# movieNm(영화명)이 아니라
-# audiCnt(관객 수)를 기준으로 정렬합니다.
+# 작은 관객 수
+#       ↓
+# 큰 관객 수
+#
+# 영화 이름이 아니라 audiCnt 숫자를 기준으로 정렬합니다.
 top5 = top5.sort_values(
     by="audiCnt",
     ascending=True
 ).reset_index(drop=True)
 
 
-# 그래프용 데이터
-# 관객 수를 반드시 정수형으로 사용합니다.
+# 그래프에 넣을 데이터
 chart_df = pd.DataFrame({
     "영화명": top5["movieNm"].astype(str),
     "관객 수": top5["audiCnt"].astype(int)
 })
 
 
-# 관객 수 숫자 오름차순으로 그래프 표시
+# ---------------------------------------
+# 관객 수 오름차순 그래프
+# ---------------------------------------
+#
+# 왼쪽  → 관객 수 적음
+# 오른쪽 → 관객 수 많음
+#
+# 따라서 가장 많은 관객 수를 가진 영화가
+# 항상 그래프의 가장 뒤(오른쪽)에 위치합니다.
+
 st.bar_chart(
     chart_df,
     x="영화명",
