@@ -376,22 +376,3 @@ top5 = (
     .head(5)
     .copy()
 )
-
-# 선택된 5편을 다시 관객수가 적은 순서로 정렬합니다.
-top5 = top5.sort_values(
-    "audiCnt",
-    ascending=True
-)
-
-# 영화명과 관객수만 그래프에 사용합니다.
-chart_df = top5[
-    ["movieNm", "audiCnt"]
-].set_index("movieNm")
-
-# 관객수가 적은 영화부터 많은 영화 순서로 그래프 표시
-st.bar_chart(
-    chart_df,
-    y="audiCnt",
-    x_label="영화",
-    y_label="관객수"
-)
